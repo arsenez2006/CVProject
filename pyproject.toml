@@ -4,7 +4,10 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 authors = [
-    { name = "Arseny Lashkevich", email = "a.lashkevich@innopolis.university" }
+    { name = "Arseny Lashkevich", email = "a.lashkevich@innopolis.university" },
+    { name = "Emil Nabiullin", email = "e.nabiullin@innopolis.university" },
+    { name = "Apollinariia Azarskova", email = "a.azarskova@innopolis.university" },
+    { name = "Sofiia Sultanova", email = "s.sultanova@innopolis.university" }
 ]
 requires-python = ">=3.14"
 dependencies = [
