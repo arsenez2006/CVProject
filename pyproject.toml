@@ -12,9 +12,17 @@ dependencies = [
     "opencv-python>=5.0.0.93",
     "pycocotools>=2.0.11",
     "scikit-learn>=1.9.1",
-    "torch>=2.14.1",
-    "torchvision>=0.29.1",
+    "certifi>=2026.7.22",
 ]
+
+[project.optional-dependencies]
+cpu = [ "torch", "torchvision" ]
+rocm = [ 
+  "torch", 
+  "torchvision",
+  "triton-rocm>=3.8.0 ; sys_platform == 'linux'",
+]
+cuda = [ "torch", "torchvision" ]
 
 [project.scripts]
 cvproject = "cvproject:main"
@@ -28,6 +36,40 @@ name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
+[[tool.uv.index]]
+name = "pytorch-rocm"
+url = "https://download.pytorch.org/whl/rocm7.2"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
 [tool.uv.sources]
-torch = { index = "pytorch-cpu" }
-torchvision = { index = "pytorch-cpu" }
+torch = [ 
+  { index = "pytorch-cpu", extra = "cpu", marker = "sys_platform != 'linux'" },
+  { index = "pytorch-rocm", extra = "rocm" },
+  { index = "pytorch-cu126", extra = "cuda" },
+]
+torchvision = [ 
+  { index = "pytorch-cpu", extra = "cpu", marker = "sys_platform != 'linux'" },
+  { index = "pytorch-rocm", extra = "rocm" },
+  { index = "pytorch-cu126", extra = "cuda" },
+]
+pytorch-triton-rocm = [
+  { index = "pytorch-rocm", marker = "sys_platform == 'linux'" },
+]
+triton-rocm = [
+  { index = "pytorch-rocm", marker = "sys_platform == 'linux'" },
+]
+
+[tool.uv]
+conflicts = [
+  [
+    { extra = "cpu" },
+    { extra = "rocm" },
+    { extra = "cuda" },
+  ]
+]
+

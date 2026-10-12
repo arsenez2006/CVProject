@@ -1,6 +1,9 @@
 import argparse
 import json
 from pathlib import Path
+import ssl
+import os
+import certifi
 
 import numpy as np
 import torch
@@ -18,6 +21,9 @@ from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 
 from dataset import PedestrianDataset
 
+os.environ['SSL_CERT_FILE'] = certifi.where()
+os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
+ssl._create_default_https_context = lambda: ssl.create_default_context(cafile=certifi.where())
 
 def set_seed(seed=42):
     np.random.seed(seed)
@@ -45,7 +51,6 @@ def build_coco_ground_truth(dataset):
     for image_id in range(len(dataset)):
         image, target = dataset[image_id]
 
-        # Поддерживаем и PIL.Image, и torch.Tensor
         if hasattr(image, "size") and len(image.size) == 2:
             width, height = image.size
         else:
@@ -85,10 +90,8 @@ def build_coco_ground_truth(dataset):
 
 
 def build_model(num_classes=2):
-    # Загружаем pretrained модель с COCO-весами (num_classes НЕ указываем)
     model = maskrcnn_resnet50_fpn(weights=MaskRCNN_ResNet50_FPN_Weights.COCO_V1)
 
-    # Заменяем головы под наши классы (background + pedestrian)
     in_features = model.roi_heads.box_predictor.cls_score.in_features
     model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 
@@ -105,7 +108,6 @@ def run_training(train_loader, val_loader, device, epochs=5, lr=0.005):
     params = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.SGD(params, lr=lr, momentum=0.9, weight_decay=0.0005)
 
-    # Считаем GT для val один раз, а не на каждой эпохе
     coco_gt = build_coco_ground_truth(val_loader.dataset)
 
     history = []
@@ -288,7 +290,12 @@ def main():
     print(f"Train loader batches: {len(train_loader)}")
     print(f"Val loader batches: {len(val_loader)}")
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
     print(f"Using device: {device}")
 
     try:

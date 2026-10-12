@@ -5,8 +5,8 @@ stages:
     deps:
     - path: src/download.py
       hash: md5
-      md5: 03de025cb5ecafb7428ba4013ee7b0a8
-      size: 1236
+      md5: 7592aff19e5e040c696262abf289ab8b
+      size: 1124
     outs:
     - path: data/raw
       hash: md5
@@ -23,11 +23,37 @@ stages:
       nfiles: 512
     - path: src/preprocess.py
       hash: md5
-      md5: 84a3d075e2382f5bc0663f5f57e2131d
-      size: 2700
+      md5: d8ae4646aed3743f83ed5036712dc5dc
+      size: 3689
     outs:
     - path: data/processed
       hash: md5
-      md5: 71b514c8eab52fe9b8b488525f1c3aec.dir
-      size: 53664443
+      md5: bbf0f2edaa33808b7a61247e566bc828.dir
+      size: 28119127
       nfiles: 340
+  train:
+    cmd: python src/train_baseline.py --data-dir data/processed --output-dir 
+      artifacts
+    deps:
+    - path: data/processed
+      hash: md5
+      md5: bbf0f2edaa33808b7a61247e566bc828.dir
+      size: 28119127
+      nfiles: 340
+    - path: src/dataset.py
+      hash: md5
+      md5: a79429f680b530391456f05abc9924e9
+      size: 2302
+    - path: src/train_baseline.py
+      hash: md5
+      md5: db59f1319ea37ed13f71504425d0b3b8
+      size: 10313
+    outs:
+    - path: artifacts/maskrcnn_baseline.pt
+      hash: md5
+      md5: c64d98aaefae5c9c8f60b51bd8f3b6df
+      size: 176228563
+    - path: artifacts/metrics.json
+      hash: md5
+      md5: 28149c444519cdd2606ce814fe4502f2
+      size: 1015

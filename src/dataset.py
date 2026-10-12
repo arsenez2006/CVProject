@@ -6,10 +6,6 @@ from PIL import Image
 from torch.utils.data import Dataset
 
 class PedestrianDataset(Dataset):
-    """
-    Класс датасета для загрузки изображений пешеходов и их масок сегментации.
-    Подходит под требования Mask R-CNN (возвращает boxes, masks, labels и др.).
-    """
     def __init__(self, root_dir, transforms=None):
         self.root_dir = Path(root_dir)
         self.transforms = transforms
@@ -27,7 +23,6 @@ class PedestrianDataset(Dataset):
         self.masks = [masks_by_stem[path.stem] for path in self.imgs]
 
     def __getitem__(self, idx):
-        # Загрузка изображения и соответствующей маски
         img_path = self.imgs[idx]
         mask_path = self.masks[idx]
         
@@ -35,14 +30,11 @@ class PedestrianDataset(Dataset):
         mask = Image.open(mask_path)
         
         mask_np = np.array(mask)
-        # Идетификаторы объектов (0 — фон, остальные числа — разные пешеходы)
         obj_ids = np.unique(mask_np)
         obj_ids = obj_ids[1:]  # Убираем фон
 
-        # Превращаем цветовую маску в набор бинарных масок для каждого экземпляра
         masks = mask_np == obj_ids[:, None, None]
 
-        # Вычисление bounding boxes [xmin, ymin, xmax, ymax] на основе масок
         num_objs = len(obj_ids)
         boxes = []
         for i in range(num_objs):
@@ -53,7 +45,6 @@ class PedestrianDataset(Dataset):
             ymax = np.max(pos[0]) + 1
             boxes.append([xmin, ymin, xmax, ymax])
 
-        # Конвертация в тензоры PyTorch, необходимые для Mask R-CNN
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
         labels = torch.ones((num_objs,), dtype=torch.int64)  # Все классы = 1 (пешеход)
         masks = torch.as_tensor(masks, dtype=torch.uint8)
