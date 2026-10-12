@@ -48,5 +48,3 @@ The first baseline run reports validation metrics from COCO evaluation. The init
 
 Team Git repository:
 https://github.com/arsenez2006/CVProject.git
-
-Prepared by Emil Nabiullin.
