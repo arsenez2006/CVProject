@@ -106,7 +106,12 @@ def main():
     if len(base_dataset) == 0:
         parser.error("Validation dataset is empty.")
     groups = select_subsets(base_dataset, args.overlap_iou)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
     model = load_trained_model(args.checkpoint, device)
     print(f"Using device: {device}; validation images: {len(base_dataset)}")
     print("Subset sizes:", {name: len(indices) for name, indices in groups.items()})
