@@ -1,4 +1,5 @@
-import os
+from pathlib import Path
+
 import torch
 import numpy as np
 from PIL import Image
@@ -10,17 +11,25 @@ class PedestrianDataset(Dataset):
     Подходит под требования Mask R-CNN (возвращает boxes, masks, labels и др.).
     """
     def __init__(self, root_dir, transforms=None):
-        self.root_dir = root_dir
+        self.root_dir = Path(root_dir)
         self.transforms = transforms
-        
-        # Сортируем файлы, чтобы изображения и маски строго совпадали по индексам
-        self.imgs = list(sorted(os.listdir(os.path.join(root_dir, "PNGImages"))))
-        self.masks = list(sorted(os.listdir(os.path.join(root_dir, "PedMasks"))))
+
+        self.imgs = sorted((self.root_dir / "PNGImages").glob("*"))
+        masks_by_stem = {
+            path.stem.removesuffix("_mask"): path
+            for path in (self.root_dir / "PedMasks").glob("*")
+        }
+        missing_masks = [path.name for path in self.imgs if path.stem not in masks_by_stem]
+        if missing_masks:
+            raise FileNotFoundError(
+                f"Missing masks for {len(missing_masks)} image(s), first: {missing_masks[0]}"
+            )
+        self.masks = [masks_by_stem[path.stem] for path in self.imgs]
 
     def __getitem__(self, idx):
         # Загрузка изображения и соответствующей маски
-        img_path = os.path.join(self.root_dir, "PNGImages", self.imgs[idx])
-        mask_path = os.path.join(self.root_dir, "PedMasks", self.masks[idx])
+        img_path = self.imgs[idx]
+        mask_path = self.masks[idx]
         
         img = Image.open(img_path).convert("RGB")
         mask = Image.open(mask_path)
@@ -39,9 +48,9 @@ class PedestrianDataset(Dataset):
         for i in range(num_objs):
             pos = np.where(masks[i])
             xmin = np.min(pos[1])
-            xmax = np.max(pos[1])
+            xmax = np.max(pos[1]) + 1
             ymin = np.min(pos[0])
-            ymax = np.max(pos[0])
+            ymax = np.max(pos[0]) + 1
             boxes.append([xmin, ymin, xmax, ymax])
 
         # Конвертация в тензоры PyTorch, необходимые для Mask R-CNN
@@ -49,7 +58,7 @@ class PedestrianDataset(Dataset):
         labels = torch.ones((num_objs,), dtype=torch.int64)  # Все классы = 1 (пешеход)
         masks = torch.as_tensor(masks, dtype=torch.uint8)
         image_id = torch.tensor([idx])
-        area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
+        area = masks.flatten(1).sum(dim=1).to(torch.float32)
         iscrowd = torch.zeros((num_objs,), dtype=torch.int64)
 
         target = {

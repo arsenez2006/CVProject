@@ -17,3 +17,14 @@ stages:
       - data/processed:
           persist: false
           cache: true
+
+  train:
+    cmd: python src/train_baseline.py --data-dir data/processed --output-dir artifacts
+    deps:
+      - src/train_baseline.py
+      - src/dataset.py
+      - data/processed
+    outs:
+      - artifacts/maskrcnn_baseline.pt
+    metrics:
+      - artifacts/metrics.json

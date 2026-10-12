@@ -5,8 +5,8 @@ stages:
     deps:
     - path: src/download.py
       hash: md5
-      md5: b54aae6d86dbf9ac95a53d4fb6da86eb
-      size: 1206
+      md5: 03de025cb5ecafb7428ba4013ee7b0a8
+      size: 1236
     outs:
     - path: data/raw
       hash: md5
@@ -23,8 +23,8 @@ stages:
       nfiles: 512
     - path: src/preprocess.py
       hash: md5
-      md5: 1dd154bbc776b65e5c2b0e18645aac1e
-      size: 2646
+      md5: 84a3d075e2382f5bc0663f5f57e2131d
+      size: 2700
     outs:
     - path: data/processed
       hash: md5
