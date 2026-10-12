@@ -28,3 +28,18 @@ stages:
       - artifacts/maskrcnn_baseline.pt
     metrics:
       - artifacts/metrics.json
+  
+  evaluate:
+    cmd: python src/evaluate_subsets.py --val-dir data/processed/val --checkpoint artifacts/maskrcnn_baseline.pt --output-dir results
+    deps:
+      - src/evaluate_subsets.py
+      - src/train_baseline.py
+      - src/dataset.py
+      - data/processed/val
+      - artifacts/maskrcnn_baseline.pt
+    metrics:
+      - results/subset_metrics.json:
+          cache: false
+    outs:
+      - results/subset_metrics.csv:
+          cache: false
