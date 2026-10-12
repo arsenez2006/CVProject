@@ -1,0 +1,33 @@
+schema: '2.0'
+stages:
+  download:
+    cmd: python src/download.py --output data/raw
+    deps:
+    - path: src/download.py
+      hash: md5
+      md5: b54aae6d86dbf9ac95a53d4fb6da86eb
+      size: 1206
+    outs:
+    - path: data/raw
+      hash: md5
+      md5: f0730a82bca4f1fe8f6b4a850a8d19ff.dir
+      size: 53875364
+      nfiles: 512
+  preprocess:
+    cmd: python src/preprocess.py --input data/raw --output data/processed
+    deps:
+    - path: data/raw
+      hash: md5
+      md5: f0730a82bca4f1fe8f6b4a850a8d19ff.dir
+      size: 53875364
+      nfiles: 512
+    - path: src/preprocess.py
+      hash: md5
+      md5: 1dd154bbc776b65e5c2b0e18645aac1e
+      size: 2646
+    outs:
+    - path: data/processed
+      hash: md5
+      md5: 71b514c8eab52fe9b8b488525f1c3aec.dir
+      size: 53664443
+      nfiles: 340

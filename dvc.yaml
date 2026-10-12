@@ -1,0 +1,19 @@
+stages:
+  download:
+    cmd: python src/download.py --output data/raw
+    deps:
+      - src/download.py
+    outs:
+      - data/raw:
+          persist: false
+          cache: true
+
+  preprocess:
+    cmd: python src/preprocess.py --input data/raw --output data/processed
+    deps:
+      - src/preprocess.py
+      - data/raw
+    outs:
+      - data/processed:
+          persist: false
+          cache: true
