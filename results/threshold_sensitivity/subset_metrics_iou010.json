@@ -1,0 +1,79 @@
+{
+  "checkpoint": "artifacts/maskrcnn_baseline.pt",
+  "validation_directory": "data/processed/val",
+  "overlap_definition": "GT bounding-box IoU >= 0.1",
+  "notes": [
+    "Overlap is a bounding-box heuristic, not verified human occlusion labels.",
+    "The multi_person group includes both multi_nonoverlap and overlap groups.",
+    "All subsets were evaluated with the same fixed checkpoint."
+  ],
+  "subset_counts": {
+    "all": 34,
+    "isolated": 14,
+    "multi_nonoverlap": 12,
+    "overlap": 8,
+    "multi_person": 20
+  },
+  "results": [
+    {
+      "subset": "all",
+      "images": 34,
+      "ground_truth_pedestrians": 88,
+      "bbox_ap": 0.7560639417251527,
+      "bbox_ap50": 0.974484089174135,
+      "bbox_ap75": 0.912614202225357,
+      "mask_ap": 0.6876401889025214,
+      "mask_ap50": 0.9574412140705136,
+      "mask_ap75": 0.8780675275350349,
+      "gap": 0.06842375282263125
+    },
+    {
+      "subset": "isolated",
+      "images": 14,
+      "ground_truth_pedestrians": 14,
+      "bbox_ap": 0.827113480578827,
+      "bbox_ap50": 1.0,
+      "bbox_ap75": 0.9207920792079208,
+      "mask_ap": 0.7537699923838539,
+      "mask_ap50": 1.0,
+      "mask_ap75": 1.0,
+      "gap": 0.07334348819497316
+    },
+    {
+      "subset": "multi_nonoverlap",
+      "images": 12,
+      "ground_truth_pedestrians": 40,
+      "bbox_ap": 0.7793521549957195,
+      "bbox_ap50": 0.9694498845488946,
+      "bbox_ap75": 0.9373792421258933,
+      "mask_ap": 0.7407980535732016,
+      "mask_ap50": 0.9694498845488946,
+      "mask_ap75": 0.9431360993242183,
+      "gap": 0.03855410142251792
+    },
+    {
+      "subset": "overlap",
+      "images": 8,
+      "ground_truth_pedestrians": 34,
+      "bbox_ap": 0.7226324862158061,
+      "bbox_ap50": 0.9922648514851484,
+      "bbox_ap75": 0.8924475483262614,
+      "mask_ap": 0.6244185107677739,
+      "mask_ap50": 0.9632898951659874,
+      "mask_ap75": 0.7560725861588717,
+      "gap": 0.09821397544803223
+    },
+    {
+      "subset": "multi_person",
+      "images": 20,
+      "ground_truth_pedestrians": 74,
+      "bbox_ap": 0.7445047173170106,
+      "bbox_ap50": 0.9676468949758025,
+      "bbox_ap75": 0.906262349880292,
+      "mask_ap": 0.6799306972729989,
+      "mask_ap50": 0.950809455417893,
+      "mask_ap75": 0.8598997438900509,
+      "gap": 0.06457402004401169
+    }
+  ]
+}
