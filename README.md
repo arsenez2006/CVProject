@@ -44,6 +44,35 @@ The first baseline run reports validation metrics from COCO evaluation. The init
 - The model is intentionally treated as a first baseline; further improvement would require longer training, stronger augmentation, or a pretrained backbone with more epochs.
 - The pipeline is currently validated on the PennFudanPed dataset and is ready to be extended with additional experiments.
 
+## Occlusion analysis (OpenCV inference, error heatmaps)
+
+Scripts: `src/infer.py`, `src/occlusion_eval.py`, `src/occlusion.py`, `src/error_maps.py`, `src/cvutils.py`.
+
+    uv run --no-sync python src/occlusion_eval.py --weights artifacts/maskrcnn_baseline.pt --output-dir artifacts/occlusion
+    uv run --no-sync python src/infer.py --input data/processed/val --prob-heatmap
+
+Synthetic grey occluders hide 10-70 % of each pedestrian (`random`, `lower`, `side`); GT = visible part (modal).
+Clean baseline: Mask AP 67.9, Box AP 75.3.
+
+| Occlusion | random | lower | side |
+|---|---|---|---|
+| 0.3 | 24.3 | 60.8 | 57.6 |
+| 0.5 | 17.3 | 49.5 | 42.0 |
+| 0.7 | 21.9 | 44.9 | 15.4 |
+
+(Mask AP, modal GT.)
+
+![Mask AP vs occlusion](docs/figures/fig01_ap_modal.png)
+![Error heatmaps, lower](docs/figures/fig04_heatmap_lower.png)
+
+Conclusions:
+- Where the occluder sits matters more than how big it is: a rectangle inside the body (`random`) already drops Mask AP to 24 at 30 %, while hiding the legs (`lower`) keeps 61.
+- The model segments the visible part but does not complete the person from the edge (amodal AP is ~0 for `lower`/`side` at >= 50 %).
+- Enclosed occluders get filled in, and people are split into fragments (see `docs/figures/fig06-fig10`).
+- At 70 % occlusion 47-59 % of pedestrians are missed entirely.
+- On the clean data, images with heavy natural occlusion score noticeably lower (Mask AP 61.8) than isolated pedestrians (74.4).
+- Body heatmaps are normalised to the visible box, so they show where the mask fails, not which body part is lost first.
+
 ## Repository link
 
 Team Git repository:

@@ -16,6 +16,7 @@ dependencies = [
     "pycocotools>=2.0.11",
     "scikit-learn>=1.9.1",
     "certifi>=2026.7.22",
+    "matplotlib>=3.11.2",
 ]
 
 [project.optional-dependencies]
