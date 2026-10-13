@@ -87,44 +87,22 @@ def collate_fn(batch):
     return tuple(zip(*batch))
 
 
-def main():
-    parser = argparse.ArgumentParser(description="COCO metrics by pedestrian subset")
-    parser.add_argument("--val-dir", type=Path, default=Path("data/processed/val"))
-    parser.add_argument("--checkpoint", type=Path, default=Path("artifacts/maskrcnn_baseline.pt"))
-    parser.add_argument("--output-dir", type=Path, default=Path("artifacts/subset_evaluation"))
-    parser.add_argument("--overlap-iou", type=float, default=0.05)
-    args = parser.parse_args()
+def format_threshold_tag(value: float) -> str:
+    """0.05 -> 'iou005', 0.10 -> 'iou010', 0.20 -> 'iou020'."""
+    return f"iou{int(round(value * 100)):03d}"
 
-    if not 0.0 < args.overlap_iou <= 1.0:
-        parser.error("--overlap-iou must be in (0, 1].")
-    if not args.val_dir.is_dir():
-        parser.error(f"Validation directory not found: {args.val_dir}. Run preprocessing first.")
-    if not args.checkpoint.is_file():
-        parser.error(f"Checkpoint not found: {args.checkpoint}. Obtain/train the model first.")
 
-    base_dataset = PedestrianDataset(str(args.val_dir))
-    if len(base_dataset) == 0:
-        parser.error("Validation dataset is empty.")
-    groups = select_subsets(base_dataset, args.overlap_iou)
-    if torch.cuda.is_available():
-        device = torch.device("cuda")
-    elif torch.backends.mps.is_available():
-        device = torch.device("mps")
-    else:
-        device = torch.device("cpu")
-    model = load_trained_model(args.checkpoint, device)
-    print(f"Using device: {device}; validation images: {len(base_dataset)}")
-    print("Subset sizes:", {name: len(indices) for name, indices in groups.items()})
-
+def evaluate_groups(model, base_dataset, groups, device, overlap_threshold):
     rows = []
+    tag = format_threshold_tag(overlap_threshold)
     for name, original_indices in groups.items():
         if not original_indices:
-            print(f"SKIP {name}: no validation images in this subset")
+            print(f"SKIP [{tag}] {name}: no validation images in this subset")
             continue
         subset = ReindexedSubset(base_dataset, original_indices)
         loader = DataLoader(subset, batch_size=1, shuffle=False,
                             num_workers=0, collate_fn=collate_fn)
-        print(f"\n--- Evaluating {name} ({len(subset)} images) ---")
+        print(f"\n--- [{tag}] Evaluating {name} ({len(subset)} images) ---")
         metrics = evaluate_model(model, loader, device)
         gt_people = sum(len(subset[i][1]["boxes"]) for i in range(len(subset)))
         row = {
@@ -137,10 +115,15 @@ def main():
         rows.append(row)
         print(f"{name}: BBox AP={row['bbox_ap']:.4f}; "
               f"Mask AP={row['mask_ap']:.4f}; Gap={row['gap']:.4f}")
+    return rows
 
-    args.output_dir.mkdir(parents=True, exist_ok=True)
-    csv_path = args.output_dir / "subset_metrics.csv"
-    json_path = args.output_dir / "subset_metrics.json"
+
+def write_results(rows, groups, output_dir, overlap_threshold,
+                  checkpoint, val_dir, tag=None):
+    output_dir.mkdir(parents=True, exist_ok=True)
+    suffix = f"_{tag}" if tag else ""
+    csv_path = output_dir / f"subset_metrics{suffix}.csv"
+    json_path = output_dir / f"subset_metrics{suffix}.json"
     fieldnames = ["subset", "images", "ground_truth_pedestrians", "bbox_ap",
                   "bbox_ap50", "bbox_ap75", "mask_ap", "mask_ap50", "mask_ap75", "gap"]
     with csv_path.open("w", newline="", encoding="utf-8") as file:
@@ -149,9 +132,9 @@ def main():
         writer.writerows(rows)
     with json_path.open("w", encoding="utf-8") as file:
         json.dump({
-            "checkpoint": str(args.checkpoint),
-            "validation_directory": str(args.val_dir),
-            "overlap_definition": f"GT bounding-box IoU >= {args.overlap_iou}",
+            "checkpoint": str(checkpoint),
+            "validation_directory": str(val_dir),
+            "overlap_definition": f"GT bounding-box IoU >= {overlap_threshold}",
             "notes": [
                 "Overlap is a bounding-box heuristic, not verified human occlusion labels.",
                 "The multi_person group includes both multi_nonoverlap and overlap groups.",
@@ -160,8 +143,73 @@ def main():
             "subset_counts": {name: len(indices) for name, indices in groups.items()},
             "results": rows,
         }, file, ensure_ascii=False, indent=2)
+    return csv_path, json_path
+
+
+def main():
+    parser = argparse.ArgumentParser(description="COCO metrics by pedestrian subset")
+    parser.add_argument("--val-dir", type=Path, default=Path("data/processed/val"))
+    parser.add_argument("--checkpoint", type=Path,
+                        default=Path("artifacts/maskrcnn_baseline.pt"))
+    parser.add_argument("--output-dir", type=Path,
+                        default=Path("artifacts/subset_evaluation"))
+    parser.add_argument("--overlap-iou", type=float, default=0.05,
+                        help="Primary overlap threshold for the top-level result.")
+    parser.add_argument("--sensitivity-thresholds", type=float, nargs="+",
+                        default=[0.05, 0.10, 0.20],
+                        help="IoU thresholds evaluated into threshold_sensitivity/.")
+    args = parser.parse_args()
+
+    if not 0.0 < args.overlap_iou <= 1.0:
+        parser.error("--overlap-iou must be in (0, 1].")
+    for t in args.sensitivity_thresholds:
+        if not 0.0 < t <= 1.0:
+            parser.error(f"--sensitivity-thresholds value {t} must be in (0, 1].")
+    if not args.val_dir.is_dir():
+        parser.error(f"Validation directory not found: {args.val_dir}. "
+                     "Run preprocessing first.")
+    if not args.checkpoint.is_file():
+        parser.error(f"Checkpoint not found: {args.checkpoint}. "
+                     "Obtain/train the model first.")
+
+    base_dataset = PedestrianDataset(str(args.val_dir))
+    if len(base_dataset) == 0:
+        parser.error("Validation dataset is empty.")
+
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
+    model = load_trained_model(args.checkpoint, device)
+    print(f"Using device: {device}; validation images: {len(base_dataset)}")
+
+    # --- Primary evaluation ---
+    primary_groups = select_subsets(base_dataset, args.overlap_iou)
+    print("Primary subset sizes:",
+          {name: len(indices) for name, indices in primary_groups.items()})
+    primary_rows = evaluate_groups(model, base_dataset, primary_groups,
+                                   device, args.overlap_iou)
+    csv_path, json_path = write_results(
+        primary_rows, primary_groups, args.output_dir, args.overlap_iou,
+        args.checkpoint, args.val_dir, tag=None,
+    )
     print(f"\nSaved: {csv_path}")
     print(f"Saved: {json_path}")
+
+    # --- Sensitivity sweep ---
+    sens_dir = args.output_dir / "threshold_sensitivity"
+    for t in args.sensitivity_thresholds:
+        groups = select_subsets(base_dataset, t)
+        rows = evaluate_groups(model, base_dataset, groups, device, t)
+        tag = format_threshold_tag(t)
+        csv_path, json_path = write_results(
+            rows, groups, sens_dir, t,
+            args.checkpoint, args.val_dir, tag=tag,
+        )
+        print(f"Saved: {csv_path}")
+        print(f"Saved: {json_path}")
 
 
 if __name__ == "__main__":

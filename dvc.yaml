@@ -30,7 +30,13 @@ stages:
       - artifacts/metrics.json
   
   evaluate:
-    cmd: python src/evaluate_subsets.py --val-dir data/processed/val --checkpoint artifacts/maskrcnn_baseline.pt --output-dir results
+    cmd: >- 
+      python src/evaluate_subsets.py 
+      --val-dir data/processed/val 
+      --checkpoint artifacts/maskrcnn_baseline.pt 
+      --output-dir results
+      --overlap-iou 0.05
+      --sensitivity-thresholds 0.05 0.10 0.20
     deps:
       - src/evaluate_subsets.py
       - src/train_baseline.py
@@ -42,4 +48,6 @@ stages:
           cache: false
     outs:
       - results/subset_metrics.csv:
+          cache: false
+      - results/threshold_sensitivity:
           cache: false
