@@ -5,8 +5,8 @@ stages:
     deps:
     - path: src/download.py
       hash: md5
-      md5: 7592aff19e5e040c696262abf289ab8b
-      size: 1124
+      md5: aee6235c80367d7068d51d36ec4c12c6
+      size: 1158
     outs:
     - path: data/raw
       hash: md5
@@ -23,13 +23,13 @@ stages:
       nfiles: 512
     - path: src/preprocess.py
       hash: md5
-      md5: d8ae4646aed3743f83ed5036712dc5dc
-      size: 3689
+      md5: 632f01fc08ee6f51dd673d9a1804f815
+      size: 3773
     outs:
     - path: data/processed
       hash: md5
-      md5: bbf0f2edaa33808b7a61247e566bc828.dir
-      size: 28119127
+      md5: f5861575fc62b7d95ecd59c952b403d4.dir
+      size: 28057632
       nfiles: 340
   train:
     cmd: python src/train_baseline.py --data-dir data/processed --output-dir 
@@ -37,63 +37,63 @@ stages:
     deps:
     - path: data/processed
       hash: md5
-      md5: bbf0f2edaa33808b7a61247e566bc828.dir
-      size: 28119127
+      md5: f5861575fc62b7d95ecd59c952b403d4.dir
+      size: 28057632
       nfiles: 340
     - path: src/dataset.py
       hash: md5
-      md5: a79429f680b530391456f05abc9924e9
-      size: 2302
+      md5: f51dcd832d8831380fcca7629cbe9097
+      size: 2372
     - path: src/train_baseline.py
       hash: md5
-      md5: db59f1319ea37ed13f71504425d0b3b8
-      size: 10313
+      md5: 109f10e746b9ec0683bf9bbfdb62cee2
+      size: 10634
     outs:
     - path: artifacts/maskrcnn_baseline.pt
       hash: md5
-      md5: c64d98aaefae5c9c8f60b51bd8f3b6df
-      size: 176228563
+      md5: 14b029d375ce349c5f82223623527048
+      size: 176224275
     - path: artifacts/metrics.json
       hash: md5
-      md5: 28149c444519cdd2606ce814fe4502f2
-      size: 1015
+      md5: 440278b940bf5c69ebc90a53f93eb4ba
+      size: 1047
   evaluate:
-    cmd: python src/evaluate_subsets.py  --val-dir data/processed/val  
-      --checkpoint artifacts/maskrcnn_baseline.pt  --output-dir results 
+    cmd: python src/evaluate_subsets.py --val-dir data/processed/val 
+      --checkpoint artifacts/maskrcnn_baseline.pt --output-dir results 
       --overlap-iou 0.05 --sensitivity-thresholds 0.05 0.10 0.20
     deps:
     - path: artifacts/maskrcnn_baseline.pt
       hash: md5
-      md5: c64d98aaefae5c9c8f60b51bd8f3b6df
-      size: 176228563
+      md5: 14b029d375ce349c5f82223623527048
+      size: 176224275
     - path: data/processed/val
       hash: md5
-      md5: f8df41cbff454191f3b43a51a1e91b9c.dir
-      size: 5805795
+      md5: 7d2396f240d51fc1df775dc153176185.dir
+      size: 5786248
       nfiles: 68
     - path: src/dataset.py
       hash: md5
-      md5: a79429f680b530391456f05abc9924e9
-      size: 2302
+      md5: f51dcd832d8831380fcca7629cbe9097
+      size: 2372
     - path: src/evaluate_subsets.py
       hash: md5
-      md5: a06adc6dd8e86100f930fa5abdad68b6
-      size: 8885
+      md5: caa01dfb87d1bd14863cecbac709b0a6
+      size: 9101
     - path: src/train_baseline.py
       hash: md5
-      md5: db59f1319ea37ed13f71504425d0b3b8
-      size: 10313
+      md5: 109f10e746b9ec0683bf9bbfdb62cee2
+      size: 10634
     outs:
     - path: results/subset_metrics.csv
       hash: md5
-      md5: 9eb800003795f1a11b59400fe99b3d56
-      size: 805
+      md5: 24f806fe7fdf94d2bd7caea4a9d53198
+      size: 815
     - path: results/subset_metrics.json
       hash: md5
-      md5: 56f4c9a80c11bacd249c071e20a35729
-      size: 2315
+      md5: 0ab2f4306e18f76b4cc4edd8d78c2f56
+      size: 2406
     - path: results/threshold_sensitivity
       hash: md5
-      md5: bd5620c8b1cb1d5f9229edb739d388b5.dir
-      size: 9288
+      md5: 2427b333580fe5921d4eb99d28093f51.dir
+      size: 9587
       nfiles: 6

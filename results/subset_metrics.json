@@ -1,6 +1,6 @@
 {
-  "checkpoint": "artifacts/maskrcnn_baseline.pt",
-  "validation_directory": "data/processed/val",
+  "checkpoint": "artifacts\\maskrcnn_baseline.pt",
+  "validation_directory": "data\\processed\\val",
   "overlap_definition": "GT bounding-box IoU >= 0.05",
   "notes": [
     "Overlap is a bounding-box heuristic, not verified human occlusion labels.",
@@ -19,61 +19,61 @@
       "subset": "all",
       "images": 34,
       "ground_truth_pedestrians": 88,
-      "bbox_ap": 0.7560639417251527,
-      "bbox_ap50": 0.974484089174135,
-      "bbox_ap75": 0.912614202225357,
-      "mask_ap": 0.6876401889025214,
-      "mask_ap50": 0.9574412140705136,
-      "mask_ap75": 0.8780675275350349,
-      "gap": 0.06842375282263125
+      "bbox_ap": 0.7145623107552903,
+      "bbox_ap50": 0.9871291394898342,
+      "bbox_ap75": 0.8363622254621015,
+      "mask_ap": 0.6900480606160515,
+      "mask_ap50": 0.9674090832943494,
+      "mask_ap75": 0.8537898270924128,
+      "gap": 0.024514250139238802
     },
     {
       "subset": "isolated",
       "images": 14,
       "ground_truth_pedestrians": 14,
-      "bbox_ap": 0.827113480578827,
+      "bbox_ap": 0.7665143437420665,
       "bbox_ap50": 1.0,
       "bbox_ap75": 0.9207920792079208,
-      "mask_ap": 0.7537699923838539,
+      "mask_ap": 0.7667936024371668,
       "mask_ap50": 1.0,
       "mask_ap75": 1.0,
-      "gap": 0.07334348819497316
+      "gap": -0.0002792586951002596
     },
     {
       "subset": "multi_nonoverlap",
       "images": 10,
       "ground_truth_pedestrians": 32,
-      "bbox_ap": 0.7848694737246604,
-      "bbox_ap50": 0.9801918122846764,
-      "bbox_ap75": 0.9399543525781148,
-      "mask_ap": 0.7637813447600916,
-      "mask_ap50": 0.9801918122846764,
-      "mask_ap75": 0.9801918122846764,
-      "gap": 0.021088128964568797
+      "bbox_ap": 0.7132682015554812,
+      "bbox_ap50": 0.9867159886720379,
+      "bbox_ap75": 0.8465594730204729,
+      "mask_ap": 0.7573035018650777,
+      "mask_ap50": 0.9867159886720379,
+      "mask_ap75": 0.9867159886720379,
+      "gap": -0.04403530030959646
     },
     {
       "subset": "overlap",
       "images": 10,
       "ground_truth_pedestrians": 42,
-      "bbox_ap": 0.723020317040219,
-      "bbox_ap50": 0.969603433178632,
-      "bbox_ap75": 0.8888044816067269,
-      "mask_ap": 0.6253846041365856,
-      "mask_ap50": 0.9432007929146057,
-      "mask_ap75": 0.7612214908126758,
-      "gap": 0.09763571290363338
+      "bbox_ap": 0.7045647659121392,
+      "bbox_ap50": 0.9839421216376636,
+      "bbox_ap75": 0.8040081381189678,
+      "mask_ap": 0.6245243932775273,
+      "mask_ap50": 0.9483419410715075,
+      "mask_ap75": 0.700483127130447,
+      "gap": 0.08004037263461194
     },
     {
       "subset": "multi_person",
       "images": 20,
       "ground_truth_pedestrians": 74,
-      "bbox_ap": 0.7445047173170106,
-      "bbox_ap50": 0.9676468949758025,
-      "bbox_ap75": 0.906262349880292,
-      "mask_ap": 0.6799306972729989,
-      "mask_ap50": 0.950809455417893,
-      "mask_ap75": 0.8598997438900509,
-      "gap": 0.06457402004401169
+      "bbox_ap": 0.703238613582427,
+      "bbox_ap50": 0.9833411578585233,
+      "bbox_ap75": 0.8154669716975788,
+      "mask_ap": 0.6776496259356128,
+      "mask_ap50": 0.9627523166371456,
+      "mask_ap75": 0.8245692831652459,
+      "gap": 0.025588987646814165
     }
   ]
 }
