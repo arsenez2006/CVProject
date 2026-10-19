@@ -19,7 +19,7 @@ from torchvision.models.detection import (
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 
-from dataset import PedestrianDataset
+from dataset import PedestrianDataset, RandomOcclusion
 
 os.environ['SSL_CERT_FILE'] = certifi.where()
 os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
@@ -251,6 +251,11 @@ def parse_args():
         type=str,
         help="Directory to save outputs.",
     )
+    parser.add_argument(
+        "--occlusion-augmentation",
+        action="store_true",
+        help="Apply random synthetic occlusions to training images.",
+    )
     return parser.parse_args()
 
 
@@ -266,7 +271,10 @@ def main():
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    train_dataset = PedestrianDataset(str(data_dir / "train"))
+    train_transforms = RandomOcclusion() if args.occlusion_augmentation else None
+    train_dataset = PedestrianDataset(
+        str(data_dir / "train"), transforms=train_transforms
+    )
     val_dataset = PedestrianDataset(str(data_dir / "val"))
 
     print(f"Train dataset size: {len(train_dataset)}")

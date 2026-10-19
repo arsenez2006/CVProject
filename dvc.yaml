@@ -28,7 +28,35 @@ stages:
       - artifacts/maskrcnn_baseline.pt
     metrics:
       - artifacts/metrics.json
-  
+
+  train_occlusion_augmented:
+    cmd: python src/train_baseline.py --data-dir data/processed --output-dir artifacts/occlusion_augmented --occlusion-augmentation
+    deps:
+      - src/train_baseline.py
+      - src/dataset.py
+      - data/processed
+    outs:
+      - artifacts/occlusion_augmented/maskrcnn_baseline.pt
+    metrics:
+      - artifacts/occlusion_augmented/metrics.json
+
+  evaluate_occlusion_augmented:
+    cmd: python src/evaluate_subsets.py --val-dir data/processed/val --checkpoint artifacts/occlusion_augmented/maskrcnn_baseline.pt --output-dir results/occlusion_augmented --overlap-iou 0.05 --sensitivity-thresholds 0.05 0.10 0.20
+    deps:
+      - src/evaluate_subsets.py
+      - src/train_baseline.py
+      - src/dataset.py
+      - data/processed/val
+      - artifacts/occlusion_augmented/maskrcnn_baseline.pt
+    metrics:
+      - results/occlusion_augmented/subset_metrics.json:
+          cache: false
+    outs:
+      - results/occlusion_augmented/subset_metrics.csv:
+          cache: false
+      - results/occlusion_augmented/threshold_sensitivity:
+          cache: false
+
   evaluate:
     cmd: python src/evaluate_subsets.py --val-dir data/processed/val --checkpoint artifacts/maskrcnn_baseline.pt --output-dir results --overlap-iou 0.05 --sensitivity-thresholds 0.05 0.10 0.20
     deps:

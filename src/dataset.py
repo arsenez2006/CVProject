@@ -5,6 +5,64 @@ import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset
 
+
+class RandomOcclusion:
+    def __init__(self, probability=0.5, max_fraction=0.5, fill_value=114):
+        self.probability = probability
+        self.max_fraction = max_fraction
+        self.fill_value = fill_value
+
+    def __call__(self, image, target):
+        if np.random.random() >= self.probability or not len(target["masks"]):
+            return image, target
+
+        image_array = np.asarray(image).copy()
+        masks = target["masks"].numpy().astype(bool)
+        instance_index = np.random.randint(len(masks))
+        mask = masks[instance_index]
+        ys, xs = np.where(mask)
+        if not len(xs):
+            return image, target
+
+        fraction = np.random.uniform(0.2, self.max_fraction)
+        x0, x1 = xs.min(), xs.max() + 1
+        y0, y1 = ys.min(), ys.max() + 1
+        height = max(1, int((y1 - y0) * np.sqrt(fraction)))
+        width = max(1, int((x1 - x0) * np.sqrt(fraction)))
+        left = np.random.randint(x0, max(x0 + 1, x1 - width + 1))
+        top = np.random.randint(y0, max(y0 + 1, y1 - height + 1))
+        occluder = np.zeros(mask.shape, dtype=bool)
+        occluder[top : top + height, left : left + width] = True
+        occluder &= mask
+
+        image_array[occluder] = self.fill_value
+        visible_masks = masks & ~occluder[None]
+        keep = visible_masks.reshape(len(visible_masks), -1).sum(axis=1) > 0
+        visible_masks = visible_masks[keep]
+        if not keep.any():
+            return image, target
+
+        boxes = []
+        for visible_mask in visible_masks:
+            visible_y, visible_x = np.where(visible_mask)
+            boxes.append(
+                [
+                    visible_x.min(),
+                    visible_y.min(),
+                    visible_x.max() + 1,
+                    visible_y.max() + 1,
+                ]
+            )
+
+        target = dict(target)
+        target["masks"] = torch.as_tensor(visible_masks, dtype=torch.uint8)
+        target["boxes"] = torch.as_tensor(boxes, dtype=torch.float32)
+        target["labels"] = target["labels"][keep]
+        target["area"] = target["masks"].flatten(1).sum(dim=1).to(torch.float32)
+        target["iscrowd"] = target["iscrowd"][keep]
+        return Image.fromarray(image_array), target
+
+
 class PedestrianDataset(Dataset):
     def __init__(self, root_dir, transforms=None):
         self.root_dir = Path(root_dir)

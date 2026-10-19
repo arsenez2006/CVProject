@@ -42,12 +42,12 @@ stages:
       nfiles: 340
     - path: src/dataset.py
       hash: md5
-      md5: f51dcd832d8831380fcca7629cbe9097
-      size: 2372
+      md5: 74cf01fb31ebe344dc9131b52a6f8cb2
+      size: 4660
     - path: src/train_baseline.py
       hash: md5
-      md5: 109f10e746b9ec0683bf9bbfdb62cee2
-      size: 10634
+      md5: febcae977b089b29bbe0cebc7c08a794
+      size: 10950
     outs:
     - path: artifacts/maskrcnn_baseline.pt
       hash: md5
@@ -73,16 +73,16 @@ stages:
       nfiles: 68
     - path: src/dataset.py
       hash: md5
-      md5: f51dcd832d8831380fcca7629cbe9097
-      size: 2372
+      md5: 74cf01fb31ebe344dc9131b52a6f8cb2
+      size: 4660
     - path: src/evaluate_subsets.py
       hash: md5
       md5: caa01dfb87d1bd14863cecbac709b0a6
       size: 9101
     - path: src/train_baseline.py
       hash: md5
-      md5: 109f10e746b9ec0683bf9bbfdb62cee2
-      size: 10634
+      md5: febcae977b089b29bbe0cebc7c08a794
+      size: 10950
     outs:
     - path: results/subset_metrics.csv
       hash: md5
@@ -96,4 +96,71 @@ stages:
       hash: md5
       md5: 2427b333580fe5921d4eb99d28093f51.dir
       size: 9587
+      nfiles: 6
+  train_occlusion_augmented:
+    cmd: python src/train_baseline.py --data-dir data/processed --output-dir 
+      artifacts/occlusion_augmented --occlusion-augmentation
+    deps:
+    - path: data/processed
+      hash: md5
+      md5: f5861575fc62b7d95ecd59c952b403d4.dir
+      size: 28057632
+      nfiles: 340
+    - path: src/dataset.py
+      hash: md5
+      md5: 74cf01fb31ebe344dc9131b52a6f8cb2
+      size: 4660
+    - path: src/train_baseline.py
+      hash: md5
+      md5: febcae977b089b29bbe0cebc7c08a794
+      size: 10950
+    outs:
+    - path: artifacts/occlusion_augmented/maskrcnn_baseline.pt
+      hash: md5
+      md5: 65b3ccaa5daa0d753503f908e8fd3e03
+      size: 176224275
+    - path: artifacts/occlusion_augmented/metrics.json
+      hash: md5
+      md5: ce955295ec928adc233dadd83cee8ef3
+      size: 1050
+  evaluate_occlusion_augmented:
+    cmd: python src/evaluate_subsets.py --val-dir data/processed/val 
+      --checkpoint artifacts/occlusion_augmented/maskrcnn_baseline.pt 
+      --output-dir results/occlusion_augmented --overlap-iou 0.05 
+      --sensitivity-thresholds 0.05 0.10 0.20
+    deps:
+    - path: artifacts/occlusion_augmented/maskrcnn_baseline.pt
+      hash: md5
+      md5: 65b3ccaa5daa0d753503f908e8fd3e03
+      size: 176224275
+    - path: data/processed/val
+      hash: md5
+      md5: 7d2396f240d51fc1df775dc153176185.dir
+      size: 5786248
+      nfiles: 68
+    - path: src/dataset.py
+      hash: md5
+      md5: 74cf01fb31ebe344dc9131b52a6f8cb2
+      size: 4660
+    - path: src/evaluate_subsets.py
+      hash: md5
+      md5: caa01dfb87d1bd14863cecbac709b0a6
+      size: 9101
+    - path: src/train_baseline.py
+      hash: md5
+      md5: febcae977b089b29bbe0cebc7c08a794
+      size: 10950
+    outs:
+    - path: results/occlusion_augmented/subset_metrics.csv
+      hash: md5
+      md5: b6a2138028de46f991ba168db9147406
+      size: 808
+    - path: results/occlusion_augmented/subset_metrics.json
+      hash: md5
+      md5: 9695b5a9b476f335d3dcb14e3278a577
+      size: 2420
+    - path: results/occlusion_augmented/threshold_sensitivity
+      hash: md5
+      md5: bdf0cc9aed1d2cc8e1cf263e1d436563.dir
+      size: 9606
       nfiles: 6
