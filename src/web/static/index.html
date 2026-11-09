@@ -1,0 +1,143 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Mask R-CNN Live</title>
+<style>
+  body { background:#111; color:#eee; font-family:system-ui; margin:0; }
+  #wrap { display:flex; flex-direction:column; align-items:center; padding:16px; gap:12px; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+  video { display:none; }
+  canvas { border:1px solid #333; width:min(46vw, 640px); height:auto; }
+  #stats { font-family:ui-monospace, monospace; font-size:13px; }
+  #log { font-size:12px; color:#888; max-height:100px; overflow:auto; width:80%; }
+  button { font-size:14px; padding:6px 14px; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <h2>Mask R-CNN Live Demo — browser camera</h2>
+  <div class="row">
+    <canvas id="src"></canvas>
+    <canvas id="out"></canvas>
+  </div>
+  <div id="stats">idle</div>
+  <button id="start">Start camera</button>
+  <div id="log"></div>
+</div>
+<video id="video" playsinline muted></video>
+
+<script>
+const video = document.getElementById('video');
+const srcCanvas = document.getElementById('src');
+const srcCtx = srcCanvas.getContext('2d');
+const outCanvas = document.getElementById('out');
+const outCtx = outCanvas.getContext('2d');
+const stats = document.getElementById('stats');
+const log = document.getElementById('log');
+const startBtn = document.getElementById('start');
+
+function logLine(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  log.prepend(d);
+  while (log.children.length > 15) log.lastChild.remove();
+}
+
+let ws = null;
+let running = false;
+let pendingMeta = null;
+let pendingResolve = null;
+
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws/infer`);
+  ws.binaryType = 'arraybuffer';
+
+  ws.onopen = () => logLine('ws connected');
+  ws.onclose = () => {
+    logLine('ws closed');
+    running = false;
+    if (pendingResolve) { pendingResolve(null); pendingResolve = null; }
+  };
+  ws.onerror = () => logLine('ws error');
+
+  ws.onmessage = (ev) => {
+    if (typeof ev.data === 'string') {
+      const msg = JSON.parse(ev.data);
+      if (msg.type === 'hello') { logLine(`server: protocol ${msg.protocol}`); return; }
+      if (msg.type === 'error') { logLine(`server error: ${msg.message}`); return; }
+      if (msg.type === 'frame') { pendingMeta = msg; return; }
+    }
+    // binary: annotated JPEG
+    const resolve = pendingResolve;
+    const meta = pendingMeta;
+    pendingResolve = null;
+    pendingMeta = null;
+    if (resolve) resolve({ meta, jpeg: ev.data });
+  };
+}
+
+// send one JPEG, resolve when the matching annotated JPEG comes back
+function roundTrip(jpegBlob) {
+  return new Promise((resolve) => {
+    pendingResolve = resolve;
+    ws.send(jpegBlob);
+  });
+}
+
+async function loop() {
+  while (running) {
+    // 1. grab current frame from <video>
+    srcCtx.drawImage(video, 0, 0, srcCanvas.width, srcCanvas.height);
+    const blob = await new Promise((r) => srcCanvas.toBlob(r, 'image/jpeg', 0.85));
+    if (!blob) break;
+
+    // 2. send + wait for annotated response
+    const res = await roundTrip(blob);
+    if (!res) break;  // ws closed
+    const { meta, jpeg } = res;
+
+    // 3. render
+    const img = await createImageBitmap(new Blob([jpeg], { type: 'image/jpeg' }));
+    if (outCanvas.width !== img.width)  outCanvas.width  = img.width;
+    if (outCanvas.height !== img.height) outCanvas.height = img.height;
+    outCtx.drawImage(img, 0, 0);
+    img.close?.();
+
+    const n = meta?.detections?.length ?? 0;
+    if (meta) {
+      stats.textContent =
+        `${n} ped  |  infer ${meta.infer_ms.toFixed(0)} ms` +
+        `  (${meta.fps.toFixed(1)} fps)  |  ${meta.width}×${meta.height}`;
+    }
+  }
+}
+
+async function start() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+      audio: false,
+    });
+    video.srcObject = stream;
+    await video.play();
+
+    srcCanvas.width  = video.videoWidth  || 640;
+    srcCanvas.height = video.videoHeight || 480;
+    outCanvas.width  = srcCanvas.width;
+    outCanvas.height = srcCanvas.height;
+
+    connect();
+    running = true;
+    logLine(`camera ready ${srcCanvas.width}×${srcCanvas.height}`);
+    loop();
+  } catch (e) {
+    logLine(`getUserMedia failed: ${e.message}`);
+  }
+}
+
+startBtn.onclick = () => { if (!running) start(); };
+</script>
+</body>
+</html>

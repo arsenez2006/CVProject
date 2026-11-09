@@ -17,6 +17,8 @@ dependencies = [
     "scikit-learn>=1.9.1",
     "certifi>=2026.7.22",
     "matplotlib>=3.11.2",
+    "fastapi>=0.162.2",
+    "uvicorn[standard]>=0.54.0",
 ]
 
 [project.optional-dependencies]
