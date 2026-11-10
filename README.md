@@ -2,6 +2,69 @@
 
 This project implements a first Mask R-CNN baseline for pedestrian instance segmentation on the PennFudanPed dataset.
 
+## Setup and execution
+
+This project uses the [`uv`](https://docs.astral.sh/uv/) package manager — install it first. `uv` reads `pyproject.toml` and `uv.lock`, so every command below resolves to the same dependency set on every machine.
+
+Pick **one** of the three Torch backends:
+
+| Command | When to use |
+|---|---|
+| `uv sync --extra cpu` | CPU-only, or macOS / Windows |
+| `uv sync --extra cuda` | NVIDIA GPU (CUDA 12.6) |
+| `uv sync --extra rocm` | AMD GPU on Linux (ROCm 7.2) |
+
+The extras are mutually exclusive — installing more than one is rejected by the resolver. On Linux there is no implicit CPU fallback: if you skip the extra, `torch` will not be installed and the demo will fail on import. Always pass `--extra cpu` on Linux machines without a GPU.
+
+To prepare the model, run the DVC pipelines (data preparation + training):
+
+```bash
+uv run dvc repro
+```
+
+This produces `artifacts/maskrcnn_baseline.pt`.
+
+To launch the live demo (browser webcam → Mask R-CNN → annotated stream back):
+
+```bash
+PYTHONPATH=src uv run python -m web --weights artifacts/maskrcnn_baseline.pt
+```
+
+Then open <http://127.0.0.1:8000> and click **Start camera**.
+
+## Environment and dependencies
+
+### Python and tooling
+
+- **Python ≥ 3.14**
+- **`uv`** as package manager (also used as the build backend, `uv_build`)
+- **`uv.lock`** committed for reproducible installs
+
+### Runtime dependencies
+
+| Package | Version | Role |
+|---|---|---|
+| `opencv-python` | `>=5.0.0.93` | Image encoding/decoding, drawing overlays |
+| `fastapi` | `>=0.162.2` | Web backend (HTTP + WebSocket) |
+| `uvicorn[standard]` | `>=0.54.0` | ASGI server (`websockets`, `httptools`, `uvloop`) |
+| `pycocotools` | `>=2.0.11` | COCO-style RLE masks for `--save-json` in `infer.py` |
+| `scikit-learn` | `>=1.9.1` | Metrics in the training pipeline |
+| `matplotlib` | `>=3.11.2` | Plots / training curves |
+| `dvc` | `>=3.67.1` | Data and training pipelines (`uv run dvc repro`) |
+| `certifi` | `>=2026.7.22` | TLS roots |
+
+### Optional dependencies — Torch backend
+
+All three extras install `torch` and `torchvision`. The `rocm` extra additionally pulls `triton-rocm>=3.8.0` on Linux.
+
+| Extra | GPU vendor | Torch source |
+|---|---|---|
+| `cpu` | none | `download.pytorch.org/whl/cpu` |
+| `cuda` | NVIDIA | `download.pytorch.org/whl/cu126` |
+| `rocm` | AMD, Linux only | `download.pytorch.org/whl/rocm7.2` |
+
+Torch wheels are pulled from dedicated PyTorch package indexes, not from PyPI. The three extras are declared as conflicting, so only one can be active at a time.
+
 ## Project status
 
 The repository currently contains an end-to-end pipeline for dataset downloading and preprocessing, a custom PennFudanPed dataset loader, and a working baseline training script. The data pipeline resolves the raw PennFudanPed directory, splits it into train/validation subsets, and copies the matching image/mask pairs into `data/processed/train` and `data/processed/val`.
