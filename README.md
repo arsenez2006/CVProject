@@ -65,6 +65,16 @@ All three extras install `torch` and `torchvision`. The `rocm` extra additionall
 
 Torch wheels are pulled from dedicated PyTorch package indexes, not from PyPI. The three extras are declared as conflicting, so only one can be active at a time.
 
+## Team contributions
+
+| Team Member | Area of Responsibility | Contribution |
+| --- | --- | --- |
+| **Arseny Lashkevich** | Data Engineering & MLOps | DVC integration, dataset downloading and formatting, PyTorch `Dataset` class implementation, and augmentation pipeline configuration. |
+| **Emil Nabiullin** | Model Development | Mask R-CNN initialization, training and validation loops, and GPU memory optimization. |
+| **Apollinariia Azarskova** | Computer Vision Analysis | OpenCV inference scripts, error heatmap generation, and qualitative analysis of Mask AP drops under occlusion scenarios. |
+| **Sofiia Sultanova** | Evaluation & QA | Setup of `pycocotools` for metric evaluation, cross-testing the algorithm across dataset subsets, and final report compilation. |
+
+
 ## Project status
 
 The repository currently contains an end-to-end pipeline for dataset downloading and preprocessing, a custom PennFudanPed dataset loader, and a working baseline training script. The data pipeline resolves the raw PennFudanPed directory, splits it into train/validation subsets, and copies the matching image/mask pairs into `data/processed/train` and `data/processed/val`.
