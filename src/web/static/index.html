@@ -22,7 +22,13 @@
     <canvas id="out"></canvas>
   </div>
   <div id="stats">idle</div>
-  <button id="start">Start camera</button>
+  <div class="row">
+    <button id="start">Start camera</button>
+    <label>
+      <input id="imageInput" type="file" accept="image/*">
+    </label>
+    <button id="upload" disabled>Process image</button>
+  </div>
   <div id="log"></div>
 </div>
 <video id="video" playsinline muted></video>
@@ -36,6 +42,8 @@ const outCtx = outCanvas.getContext('2d');
 const stats = document.getElementById('stats');
 const log = document.getElementById('log');
 const startBtn = document.getElementById('start');
+const imageInput = document.getElementById('imageInput');
+const uploadBtn = document.getElementById('upload');
 
 function logLine(s) {
   const d = document.createElement('div');
@@ -44,77 +52,137 @@ function logLine(s) {
   while (log.children.length > 15) log.lastChild.remove();
 }
 
-let ws = null;
-let running = false;
-let pendingMeta = null;
-let pendingResolve = null;
-
-function connect() {
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  ws = new WebSocket(`${proto}://${location.host}/ws/infer`);
-  ws.binaryType = 'arraybuffer';
-
-  ws.onopen = () => logLine('ws connected');
-  ws.onclose = () => {
-    logLine('ws closed');
-    running = false;
-    if (pendingResolve) { pendingResolve(null); pendingResolve = null; }
-  };
-  ws.onerror = () => logLine('ws error');
-
-  ws.onmessage = (ev) => {
-    if (typeof ev.data === 'string') {
-      const msg = JSON.parse(ev.data);
-      if (msg.type === 'hello') { logLine(`server: protocol ${msg.protocol}`); return; }
-      if (msg.type === 'error') { logLine(`server error: ${msg.message}`); return; }
-      if (msg.type === 'frame') { pendingMeta = msg; return; }
-    }
-    // binary: annotated JPEG
-    const resolve = pendingResolve;
-    const meta = pendingMeta;
-    pendingResolve = null;
-    pendingMeta = null;
-    if (resolve) resolve({ meta, jpeg: ev.data });
-  };
+function updateUploadButton() {
+  uploadBtn.disabled = !selectedImage || running || starting;
 }
 
-// send one JPEG, resolve when the matching annotated JPEG comes back
+let ws = null;
+let running = false;
+let starting = false;
+let pendingMeta = null;
+let pendingResolve = null;
+let selectedImage = null;
+
+// Resolves only when the socket is OPEN. Rejects on close/error before open.
+function connect() {
+  return new Promise((resolve, reject) => {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(`${proto}://${location.host}/ws/infer`);
+    ws.binaryType = 'arraybuffer';
+
+    let opened = false;
+
+    ws.onopen = () => {
+      opened = true;
+      logLine('ws connected');
+      resolve();
+    };
+
+    ws.onclose = () => {
+      logLine('ws closed');
+      running = false;
+      updateUploadButton();
+      // Wake up anyone blocked on a pending round-trip.
+      const r = pendingResolve;
+      pendingResolve = null;
+      pendingMeta = null;
+      if (r) r(null);
+      if (!opened) reject(new Error('ws closed before open'));
+    };
+
+    ws.onerror = () => {
+      logLine('ws error');
+      if (!opened) reject(new Error('ws error before open'));
+    };
+
+    ws.onmessage = (ev) => {
+      if (typeof ev.data === 'string') {
+        let msg;
+        try { msg = JSON.parse(ev.data); }
+        catch { logLine('bad server json'); return; }
+        if (msg.type === 'hello')  { logLine(`server: protocol ${msg.protocol}`); return; }
+        if (msg.type === 'error')  { logLine(`server error: ${msg.message}`); return; }
+        if (msg.type === 'frame')  { pendingMeta = msg; return; }
+        return;
+      }
+      // binary: annotated JPEG
+      const resolve = pendingResolve;
+      const meta = pendingMeta;
+      pendingResolve = null;
+      pendingMeta = null;
+      if (resolve) resolve({ meta, jpeg: ev.data });
+    };
+  });
+}
+
+// Send one JPEG, resolve with {meta, jpeg} or null on disconnect.
 function roundTrip(jpegBlob) {
   return new Promise((resolve) => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      resolve(null);
+      return;
+    }
     pendingResolve = resolve;
-    ws.send(jpegBlob);
+    try {
+      ws.send(jpegBlob);
+    } catch (e) {
+      pendingResolve = null;
+      logLine(`send failed: ${e.message}`);
+      resolve(null);
+    }
   });
 }
 
 async function loop() {
   while (running) {
+    if (!video.videoWidth || !video.videoHeight) {
+      await new Promise((r) => setTimeout(r, 30));
+      continue;
+    }
+
     // 1. grab current frame from <video>
     srcCtx.drawImage(video, 0, 0, srcCanvas.width, srcCanvas.height);
     const blob = await new Promise((r) => srcCanvas.toBlob(r, 'image/jpeg', 0.85));
-    if (!blob) break;
+    if (!blob) {
+      logLine('toBlob returned null');
+      break;
+    }
 
     // 2. send + wait for annotated response
     const res = await roundTrip(blob);
     if (!res) break;  // ws closed
     const { meta, jpeg } = res;
 
-    // 3. render
-    const img = await createImageBitmap(new Blob([jpeg], { type: 'image/jpeg' }));
-    if (outCanvas.width !== img.width)  outCanvas.width  = img.width;
-    if (outCanvas.height !== img.height) outCanvas.height = img.height;
-    outCtx.drawImage(img, 0, 0);
-    img.close?.();
+    await renderResult(jpeg, meta);
+  }
+}
 
-    const n = meta?.detections?.length ?? 0;
-    if (meta) {
-      stats.textContent =
-        `${n} ped  |  infer ${meta.infer_ms.toFixed(0)} ms` +
-        `  (${meta.fps.toFixed(1)} fps)  |  ${meta.width}×${meta.height}`;
-    }
+async function renderResult(jpeg, meta) {
+  let img;
+  try {
+    img = await createImageBitmap(new Blob([jpeg], { type: 'image/jpeg' }));
+  } catch (e) {
+    logLine(`decode failed: ${e.message}`);
+    return;
+  }
+  if (outCanvas.width !== img.width)   outCanvas.width  = img.width;
+  if (outCanvas.height !== img.height) outCanvas.height = img.height;
+  outCtx.drawImage(img, 0, 0);
+  img.close?.();
+
+  if (meta) {
+    const n = meta.detections?.length ?? 0;
+    const inferMs = Number(meta.infer_ms);
+    const fps = Number(meta.fps);
+    stats.textContent =
+      `${n} ped  |  infer ${Number.isFinite(inferMs) ? inferMs.toFixed(0) : '?'} ms` +
+      `  (${Number.isFinite(fps) ? fps.toFixed(1) : '?'} fps)  |  ${meta.width}×${meta.height}`;
   }
 }
 
 async function start() {
+  if (starting || running) return;
+  starting = true;
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
@@ -128,16 +196,57 @@ async function start() {
     outCanvas.width  = srcCanvas.width;
     outCanvas.height = srcCanvas.height;
 
-    connect();
+    await connect();                // ждём настоящего OPEN
     running = true;
+    updateUploadButton();
     logLine(`camera ready ${srcCanvas.width}×${srcCanvas.height}`);
     loop();
   } catch (e) {
-    logLine(`getUserMedia failed: ${e.message}`);
+    logLine(`start failed: ${e.message}`);
+  } finally {
+    starting = false;
+    updateUploadButton();
   }
 }
 
-startBtn.onclick = () => { if (!running) start(); };
+imageInput.onchange = () => {
+  selectedImage = imageInput.files?.[0] ?? null;
+  updateUploadButton();
+  if (selectedImage) logLine(`selected: ${selectedImage.name}`);
+};
+
+uploadBtn.onclick = async () => {
+  if (!selectedImage || starting || running) return;
+  starting = true;
+  uploadBtn.disabled = true;
+  try {
+    const img = await createImageBitmap(selectedImage);
+    srcCanvas.width = img.width;
+    srcCanvas.height = img.height;
+    outCanvas.width = img.width;
+    outCanvas.height = img.height;
+    srcCtx.drawImage(img, 0, 0);
+    img.close?.();
+
+    const blob = await new Promise((resolve) => srcCanvas.toBlob(resolve, 'image/jpeg', 0.85));
+    if (!blob) throw new Error('could not encode selected image');
+
+    if (!ws || ws.readyState !== WebSocket.OPEN) await connect();
+    stats.textContent = 'processing image...';
+    const res = await roundTrip(blob);
+    if (!res) throw new Error('connection closed while processing image');
+    await renderResult(res.jpeg, res.meta);
+    logLine(`image processed: ${selectedImage.name}`);
+  } catch (e) {
+    logLine(`image processing failed: ${e.message}`);
+    stats.textContent = 'error';
+  } finally {
+    starting = false;
+    updateUploadButton();
+  }
+};
+
+startBtn.onclick = () => { start(); };
 </script>
 </body>
 </html>
